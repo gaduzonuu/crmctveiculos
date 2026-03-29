@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
+import { ArrowLeft, Info } from 'lucide-react';
 
 // Reusable avatar with photo/fallback
 function LeadAvatar({ lead, sizeClass }) {
@@ -7,7 +8,8 @@ function LeadAvatar({ lead, sizeClass }) {
   return (
     <div className={`lead-avatar ${sizeClass}`}>
       {lead?.profile_photo_url
-        ? <img src={lead.profile_photo_url} alt={lead.name || lead.phone} onError={e => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = initial; }} />
+        ? <img src={lead.profile_photo_url} alt={lead.name || lead.phone}
+            onError={e => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = initial; }} />
         : initial}
     </div>
   );
@@ -23,22 +25,26 @@ const parseMarkdown = (text) => {
   });
 };
 
-export default function ChatPanel({ lead }) {
+export default function ChatPanel({ lead, onBack, onOpenInfo }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const areaRef = useRef(null);
   const intervalRef = useRef(null);
 
-  // Reset and restart polling when lead changes
   useEffect(() => {
     if (!lead?.phone) return;
     setItems([]);
     setLoading(true);
-    fetchMessages(true); // initial load: always scroll to bottom
-
+    fetchMessages(true);
     intervalRef.current = setInterval(() => fetchMessages(false), 2000);
     return () => clearInterval(intervalRef.current);
   }, [lead?.phone]);
+
+  useEffect(() => {
+    if (areaRef.current) {
+      areaRef.current.scrollTop = areaRef.current.scrollHeight;
+    }
+  }, []);
 
   const isAtBottom = () => {
     if (!areaRef.current) return true;
@@ -47,9 +53,7 @@ export default function ChatPanel({ lead }) {
   };
 
   const scrollToBottom = () => {
-    if (areaRef.current) {
-      areaRef.current.scrollTop = areaRef.current.scrollHeight;
-    }
+    if (areaRef.current) areaRef.current.scrollTop = areaRef.current.scrollHeight;
   };
 
   const fetchMessages = async (forceScroll = false) => {
@@ -57,10 +61,7 @@ export default function ChatPanel({ lead }) {
     try {
       const { data } = await api.get(`/leads/${lead.phone}/messages`);
       setItems(data);
-      if (shouldScroll) {
-        // Use setTimeout to allow React to finish rendering before scrolling
-        setTimeout(scrollToBottom, 50);
-      }
+      if (shouldScroll) setTimeout(scrollToBottom, 50);
     } catch (err) {
       console.error('Failed to fetch messages', err);
     } finally {
@@ -71,11 +72,24 @@ export default function ChatPanel({ lead }) {
   return (
     <div className="chat-panel">
       <div className="chat-header">
+        {/* Back button — shown only on mobile via CSS */}
+        <button className="chat-header-back" onClick={onBack} aria-label="Voltar">
+          <ArrowLeft size={22} />
+        </button>
+
         <LeadAvatar lead={lead} sizeClass="lead-avatar-sm" />
-        <div>
-          <div className="chat-header-name">{lead.name || lead.phone}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="chat-header-name"
+               style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {lead.name || lead.phone}
+          </div>
           <div className="chat-header-phone">{lead.phone}</div>
         </div>
+
+        {/* Info button — shown on tablet/mobile via CSS */}
+        <button className="chat-header-info-btn" onClick={onOpenInfo} aria-label="Informações do lead">
+          <Info size={22} />
+        </button>
       </div>
 
       <div className="chat-messages" ref={areaRef}>

@@ -11,11 +11,11 @@ export default function Dashboard() {
   const [leads, setLeads] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [infoOpen, setInfoOpen] = useState(false);  // mobile info drawer
   const leadsIntervalRef = useRef(null);
 
   useEffect(() => {
     fetchLeads();
-    // Poll leads every 5 seconds
     leadsIntervalRef.current = setInterval(fetchLeads, 5000);
     return () => clearInterval(leadsIntervalRef.current);
   }, []);
@@ -24,7 +24,6 @@ export default function Dashboard() {
     try {
       const { data } = await api.get('/leads');
       setLeads(data);
-      // Keep selectedLead in sync with updated data
       setSelectedLead(prev => {
         if (!prev) return prev;
         const updated = data.find(l => l.id === prev.id);
@@ -37,21 +36,53 @@ export default function Dashboard() {
     }
   };
 
+  const handleSelectLead = (lead) => {
+    setSelectedLead(lead);
+    setInfoOpen(false);
+  };
+
+  const handleBack = () => {
+    setSelectedLead(null);
+    setInfoOpen(false);
+  };
+
   return (
-    <div className="crm-app">
-      <Sidebar 
+    <div className={`crm-app${selectedLead ? ' lead-selected' : ''}`}>
+      <Sidebar
         leads={leads}
         loading={loading}
         selectedLead={selectedLead}
-        onSelectLead={setSelectedLead}
+        onSelectLead={handleSelectLead}
         logout={logout}
         user={user}
       />
-      
+
       {selectedLead ? (
         <>
-          <ChatPanel lead={selectedLead} />
-          <LeadInfo lead={selectedLead} />
+          <ChatPanel
+            lead={selectedLead}
+            onBack={handleBack}
+            onOpenInfo={() => setInfoOpen(true)}
+          />
+
+          {/* Desktop: always visible right panel */}
+          <div className="lead-info-desktop-wrapper">
+            <LeadInfo lead={selectedLead} />
+          </div>
+
+          {/* Tablet/Mobile: info drawer overlay */}
+          <div
+            className={`mobile-info-overlay${infoOpen ? ' open' : ''}`}
+            onClick={() => setInfoOpen(false)}
+          >
+            <div className="mobile-info-drawer" onClick={e => e.stopPropagation()}>
+              <div className="mobile-info-drawer-header">
+                <h3>Informações do Lead</h3>
+                <button className="mobile-info-drawer-close" onClick={() => setInfoOpen(false)}>×</button>
+              </div>
+              <LeadInfo lead={selectedLead} embedded />
+            </div>
+          </div>
         </>
       ) : (
         <div className="empty-chat">

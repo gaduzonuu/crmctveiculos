@@ -36,36 +36,36 @@ async function getLeadById(req, res, next) {
   }
 }
 
+const TZ = 'America/Sao_Paulo';
+
+function toDateStringInTZ(date, tz) {
+  // Returns "YYYY-MM-DD" in the given timezone for reliable comparison
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
 function formatMessageDate(createdAt) {
   try {
     const date = new Date(createdAt);
-    const now = new Date();
+    const now  = new Date();
 
-    const isToday =
-      date.getDate() === now.getDate() &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear();
-
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const isYesterday =
-      date.getDate() === yesterday.getDate() &&
-      date.getMonth() === yesterday.getMonth() &&
-      date.getFullYear() === yesterday.getFullYear();
+    // Compare calendar dates in Sao Paulo timezone (not server UTC)
+    const dateStr      = toDateStringInTZ(date, TZ); // e.g. "2026-03-28"
+    const todayStr     = toDateStringInTZ(now,  TZ);
+    const yesterdayStr = toDateStringInTZ(new Date(now.getTime() - 86400000), TZ);
 
     const time = date.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'America/Sao_Paulo'
+      timeZone: TZ
     });
 
     let dateLabel;
-    if (isToday) {
+    if (dateStr === todayStr) {
       dateLabel = 'Hoje';
-    } else if (isYesterday) {
+    } else if (dateStr === yesterdayStr) {
       dateLabel = 'Ontem';
     } else {
-      dateLabel = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      dateLabel = date.toLocaleDateString('pt-BR', { timeZone: TZ });
     }
 
     return { time, date: dateLabel };
